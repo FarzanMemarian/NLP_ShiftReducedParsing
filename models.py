@@ -6,6 +6,8 @@ from treedata import *
 import numpy as np
 from pdb import set_trace
 from sklearn.linear_model import LogisticRegression
+from scipy import sparse
+
 
 # Greedy parsing model. This model treats shift/reduce decisions as a multiclass classification problem.
 class GreedyModel(object):
@@ -192,68 +194,37 @@ def train_greedy_model(parsed_sentences):
 			for decision_idx, decision in enumerate(decisions):
 				feature_cache[sentence_idx][state_idx][decision_idx] = extract_features(feature_indexer, \
 							sentence, state, decision, add_to_indexer=True)
+	
+	data = []
+	row  = []
+	col  = []
+	row_counter = 0
+	for sentence_idx, state_action in enumerate(feature_cache):
+		for state_idx, state in enumerate(state_action):
+			for action_idx, action in enumerate(state):
+				col.extend(feature_cache[sentence_idx][state_idx][action_idx])
+				for feat_idx in feature_cache[sentence_idx][state_idx][action_idx]:
+					row.append(row_counter)
+					data.append(1)
+				row_counter += 1
+	number_train_examples = row_counter
+	feature_mat = sparse.coo_matrix((data,(row,col)),shape=(number_train_examples, len(feature_indexer))).tocsr()
+	bb = 10
+
+
+
+
+
 
 	# SGD
 	epochs = 10
-	
 	# feature_weights = np.random.rand(len(feature_indexer))
 	feature_weights = np.zeros(len(feature_indexer))
 	alpha = 0.1
 	loss = 0.0
 	for epoch in range(epochs):
 		for iter_idx in range(n_s):
-			sentence = parsed_sentences[iter_idx]
-			gold_deps = sentence.get_deps()
-			parser_state = initial_parser_state(len(sentence))
-
-			while not parser_state.is_finished(): 
-				if parser_state.stack_len() > 2:
-					head_idx = parser_state.stack_head()
-					two_back_idx = parser_state.stack_two_back()
-					if sentence.get_parent_idx(two_back_idx) == head_idx:
-						parser_state = parser_state.take_action("L")
-					elif sentence.get_parent_idx(head_idx) == two_back_idx:
-						head_idx_children = [index for index, token in enumerate(sentence.deps) if token.parent_idx == head_idx]
-						unassigned_deps = []
-						for child in head_idx_children:
-							if not child in parser_state.deps.keys():
-								unassigned_deps.append(child)
-						if len(unassigned_deps) == 0:					
-							parser_state = parser_state.take_action("R")
-						elif parser_state.buffer_len() > 0:
-							parser_state = parser_state.take_action("S")
-					elif parser_state.buffer_len() > 0:
-						parser_state = parser_state.take_action("S")
-
-
-
-				elif parser_state.stack_len() == 2:
-					head_idx = parser_state.stack_head()
-
-					if sentence.get_parent_idx(head_idx) == -1:
-						head_idx_children = [index for index, token in enumerate(sentence.deps) if token.parent_idx == head_idx]
-						unassigned_deps = []
-						for child in head_idx_children:
-							if not child in parser_state.deps.keys():
-								unassigned_deps.append(child)
-						if len(unassigned_deps) == 0:					
-							parser_state = parser_state.take_action("R")
-					elif parser_state.buffer_len() > 0:
-						parser_state = parser_state.take_action("S")
-					
-					 
-
-
-				elif parser_state.stack_len() == 1 and parser_state.buffer_len() > 0:
-					parser_state = parser_state.take_action("S")
-
-				elif parser_state.stack_len() == 1 and parser_state.buffer_len() == 0:
-					break
-				set_trace()
-				
-
-
-
+			
 
 
 	# 		for key in derivative.keys():
@@ -264,6 +235,56 @@ def train_greedy_model(parsed_sentences):
 
 	
 	# return CrfNerModel(tag_indexer, feature_indexer, feature_weights)
+
+
+
+
+def my_standard_arc(sentence):
+	gold_deps = sentence.get_deps()
+	parser_state = initial_parser_state(len(sentence))
+
+	while not parser_state.is_finished(): 
+		if parser_state.stack_len() > 2:
+			head_idx = parser_state.stack_head()
+			two_back_idx = parser_state.stack_two_back()
+			if sentence.get_parent_idx(two_back_idx) == head_idx:
+
+				parser_state = parser_state.take_action("L")
+			elif sentence.get_parent_idx(head_idx) == two_back_idx:
+				head_idx_children = [index for index, token in enumerate(sentence.deps) if token.parent_idx == head_idx]
+				unassigned_deps = []
+				for child in head_idx_children:
+					if not child in parser_state.deps.keys():
+						unassigned_deps.append(child)
+				if len(unassigned_deps) == 0:					
+					parser_state = parser_state.take_action("R")
+				elif parser_state.buffer_len() > 0:
+					parser_state = parser_state.take_action("S")
+			elif parser_state.buffer_len() > 0:
+				parser_state = parser_state.take_action("S")
+
+		elif parser_state.stack_len() == 2:
+			head_idx = parser_state.stack_head()
+
+			if sentence.get_parent_idx(head_idx) == -1:
+				head_idx_children = [index for index, token in enumerate(sentence.deps) if token.parent_idx == head_idx]
+				unassigned_deps = []
+				for child in head_idx_children:
+					if not child in parser_state.deps.keys():
+						unassigned_deps.append(child)
+				if len(unassigned_deps) == 0:					
+					parser_state = parser_state.take_action("R")
+				elif parser_state.buffer_len() > 0:
+					parser_state = parser_state.take_action("S")
+			elif parser_state.buffer_len() > 0:
+				parser_state = parser_state.take_action("S")
+
+
+		elif parser_state.stack_len() == 1 and parser_state.buffer_len() > 0:
+			parser_state = parser_state.take_action("S")
+
+		elif parser_state.stack_len() == 1 and parser_state.buffer_len() == 0:
+			break
 
 
 

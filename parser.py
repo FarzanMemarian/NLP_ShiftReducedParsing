@@ -11,7 +11,7 @@ if __name__ == '__main__':
     train_whole = read_data("data/train.conllx")
     nb_exm = 50
     train = train_whole[:nb_exm]
-    shuffle(train)
+    # shuffle(train)
     print "Kept " + repr(len(train)) + " exs"
     print "Reading dev data..."
     dev_whole = read_data("data/dev.conllx")
