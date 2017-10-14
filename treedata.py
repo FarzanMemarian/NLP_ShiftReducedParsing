@@ -1,5 +1,5 @@
 # treedata.py
-
+from pdb import set_trace
 
 # Abstraction to bundle words with POS and chunks for featurization
 # pos = part-of-speech, cpos = coarse part-of-speech
@@ -62,7 +62,7 @@ def read_data(file):
     sentences = []
     curr_tokens = []
     curr_deps = []
-    for line in f:
+    for i, line in enumerate(f):
         stripped = line.strip()
         if stripped != "":
             fields = stripped.split()
