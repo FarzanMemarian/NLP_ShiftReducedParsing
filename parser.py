@@ -9,7 +9,7 @@ if __name__ == '__main__':
     # Load the training and test data
     print "Reading train data..."
     train_whole = read_data("data/train.conllx")
-    nb_exm = 50
+    nb_exm = 100
     train = train_whole[:nb_exm]
     # shuffle(train)
     print "Kept " + repr(len(train)) + " exs"

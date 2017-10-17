@@ -56,6 +56,91 @@ class GreedyModel(object):
 
 		return ParsedSentence(sentence.tokens, parser_state.get_dep_objs(len(sentence)) )
 
+# Returns a GreedyModel trained over the given treebank.
+def train_greedy_model(parsed_sentences):
+
+	nb_sentences = len(parsed_sentences)
+	print "Extracting features"
+	feature_indexer = Indexer()
+	label_indexer = get_label_indexer()
+	# 4-d list indexed by sentence index, word index, tag index, feature index
+	# feature_cache = [[[[] for k in xrange(0, len(get_decision_sequence(parsed_sentences[i])[0]) )] \
+	# 					  for j in xrange(0, len(get_decision_sequence(parsed_sentences[i])[1]) )] \
+	# 					  for i in xrange(0, len(parsed_sentences))]
+
+	# calculating feature_cache with 3 dimentions
+	feature_cache = [[[[] for k in xrange(0, len(label_indexer))] \
+						  for j in xrange(0, len(get_decision_sequence(parsed_sentences[i])[1]) )] \
+						  for i in xrange(0, len(parsed_sentences))]
+	for sentence_idx, sentence in enumerate(parsed_sentences):
+		if sentence_idx % 100 == 0:
+			print "Ex " + repr(sentence_idx) + "/" + repr(nb_sentences)
+		decisions, states = get_decision_sequence(sentence)
+		for state_idx, state in enumerate(states):
+			for decision_idx in range(len(label_indexer)):
+				decision = label_indexer.get_object(decision_idx)
+				feature_cache[sentence_idx][state_idx][decision_idx] = extract_features(feature_indexer, \
+							sentence, state, decision, add_to_indexer=True)
+
+
+	# creating a sparce matrix based on the gold decisions
+	# data = []
+	# row  = []
+	# col  = []
+	# row_counter = 0
+	# true_labels = []
+	# for sentence_idx, state_action in enumerate(feature_cache):
+	# 	sentence = parsed_sentences[sentence_idx]
+	# 	decisions, states = get_decision_sequence(sentence)
+	# 	for state_idx, state in enumerate(state_action):
+	# 		decision = decisions[state_idx]
+	# 		true_labels.append(decision)
+	# 		col.extend(feature_cache[sentence_idx][state_idx])
+	# 		for feat_idx in feature_cache[sentence_idx][state_idx]:
+	# 			row.append(row_counter)
+	# 			data.append(1)
+	# 		row_counter += 1
+	# number_train_examples = row_counter
+	# feature_mat = sparse.coo_matrix((data,(row,col)),shape=(number_train_examples, \
+	# 	len(feature_indexer))).tocsr()
+
+
+	# logistic = LogisticRegression(penalty='l2', dual=False, tol=0.0001, C=1.0, fit_intercept=True, \
+	# 	intercept_scaling=1, class_weight=None, random_state=None, solver='liblinear', \
+	# 	max_iter=100, multi_class='ovr', verbose=0, warm_start=False, n_jobs=1)
+	# logistic.fit(feature_mat, true_labels)
+	# score = logistic.score(feature_mat, true_labels)
+	# print ("score of logistic regression:")
+	# print (score)
+
+
+	print "start training...."
+	# SGD
+	epochs = 5
+	lamb=1e-5 
+	eta=1.0
+	# feature_weights = np.random.rand(len(feature_indexer))
+	feature_weights = AdagradTrainer(np.zeros(len(feature_indexer)), lamb, eta)
+	for epoch in range(epochs):
+		print "running epoch: ", epoch
+		for sentence_idx, sentence in enumerate(parsed_sentences):
+			decisions, states = get_decision_sequence(sentence)
+			for state_idx, state in enumerate(states):
+				if state_idx < len(states) - 1:
+					delta_f = Counter()
+					gold_dec_idx = label_indexer.get_index(decisions[state_idx])
+					delta_f.increment_all(feature_cache[sentence_idx][state_idx][gold_dec_idx],1)
+					for decision_idx in range(len(label_indexer)): 
+						posterior_num = feature_weights.score(feature_cache[sentence_idx][state_idx][decision_idx])
+						posterior_denum = logsumexp([feature_weights.score(feature_cache[sentence_idx][state_idx][decision_idx2])\
+						                                for decision_idx2 in range(len(label_indexer))])
+						posterior = posterior_num - posterior_denum
+						delta_f.increment_all(feature_cache[sentence_idx][state_idx][decision_idx], -np.exp(posterior))
+					feature_weights.apply_gradient_update(delta_f, batch_size=1)
+	print "end training "
+	np.savetxt('feature_weights', feature_weights.get_final_weights())
+	# return GreedyModel(feature_indexer, feature_weights)#  .get_final_weights())
+	return BeamedModel(feature_indexer, feature_weights, 4)#  .get_final_weights())
 
 		
 
@@ -127,13 +212,91 @@ class BeamedModel(object):
 						score = self.feature_weights.score(extract_features(\
 								self.feature_indexer, sentence, parser_state, decision, add_to_indexer=False))
 						beam.add(candidate_state, score)
-				beam_arr.append(beam)
-		set_trace()
+			beam_arr.append(beam)
+		parser_state = beam_arr[-1].head()
+		
 
 
-		return ParsedSentence(sentence.tokens, parser_state.get_dep_objs(len(sentence)) )
-		pass
+		return ParsedSentence(sentence.tokens, parser_state.get_dep_objs(len(sentence)) ), beam_arr
+		
 		# raise Exception("IMPLEMENT ME")
+
+
+# Returns a BeamedModel trained over the given treebank.
+def train_beamed_model(parsed_sentences):
+
+	nb_sentences = len(parsed_sentences)
+	print "Extracting features"
+	feature_indexer = Indexer()
+	label_indexer = get_label_indexer()
+	# 4-d list indexed by sentence index, word index, tag index, feature index
+	# feature_cache = [[[[] for k in xrange(0, len(get_decision_sequence(parsed_sentences[i])[0]) )] \
+	# 					  for j in xrange(0, len(get_decision_sequence(parsed_sentences[i])[1]) )] \
+	# 					  for i in xrange(0, len(parsed_sentences))]
+
+	# calculating feature_cache with 3 dimentions
+	feature_cache = [[[[] for k in xrange(0, len(label_indexer))] \
+						  for j in xrange(0, len(get_decision_sequence(parsed_sentences[i])[1]) )] \
+						  for i in xrange(0, len(parsed_sentences))]
+	for sentence_idx, sentence in enumerate(parsed_sentences):
+		if sentence_idx % 100 == 0:
+			print "Ex " + repr(sentence_idx) + "/" + repr(nb_sentences)
+		decisions, states = get_decision_sequence(sentence)
+		for state_idx, state in enumerate(states):
+			for decision_idx in range(len(label_indexer)):
+				decision = label_indexer.get_object(decision_idx)
+				feature_cache[sentence_idx][state_idx][decision_idx] = extract_features(feature_indexer, \
+							sentence, state, decision, add_to_indexer=True)
+
+	print "start training...."
+
+
+
+	epochs = 5
+	lamb=1e-5 
+	eta=1.0
+	feature_weights = AdagradTrainer(np.zeros(len(feature_indexer)), lamb, eta)
+	beam_size = 4
+	epochs = 3
+	beamModel = BeamedModel(feature_indexer, feature_weights, beam_size)
+	for epoch in range(epochs):
+		print "running epoch: ", epoch
+		for sentence_idx, sentence in enumerate(parsed_sentences):
+			parsed_beam_sen, beam_arr = beamModel.parse(sentence)
+			
+						
+
+
+
+
+
+
+
+
+			# decisions, states = get_decision_sequence(sentence)
+			# for state_idx, state in enumerate(states):
+			# 	if state_idx < len(states) - 1:
+			# 		delta_f = Counter()
+			# 		gold_dec_idx = label_indexer.get_index(decisions[state_idx])
+			# 		delta_f.increment_all(feature_cache[sentence_idx][state_idx][gold_dec_idx],1)
+			# 		for decision_idx in range(len(label_indexer)): 
+			# 			posterior_num = feature_weights.score(feature_cache[sentence_idx][state_idx][decision_idx])
+			# 			posterior_denum = logsumexp([feature_weights.score(feature_cache[sentence_idx][state_idx][decision_idx2])\
+			# 			                                for decision_idx2 in range(len(label_indexer))])
+			# 			posterior = posterior_num - posterior_denum
+			# 			delta_f.increment_all(feature_cache[sentence_idx][state_idx][decision_idx], -np.exp(posterior))
+			# 		feature_weights.apply_gradient_update(delta_f, batch_size=1)
+
+
+
+	set_trace()
+	pass
+	# raise Exception("IMPLEMENT ME")
+
+
+
+
+
 
 
 # Stores state of a shift-reduce parser, namely the stack, buffer, and the set of dependencies that have
@@ -262,91 +425,7 @@ def get_label_indexer():
 	return label_indexer
 
 
-# Returns a GreedyModel trained over the given treebank.
-def train_greedy_model(parsed_sentences):
 
-	nb_sentences = len(parsed_sentences)
-	print "Extracting features"
-	feature_indexer = Indexer()
-	label_indexer = get_label_indexer()
-	# 4-d list indexed by sentence index, word index, tag index, feature index
-	# feature_cache = [[[[] for k in xrange(0, len(get_decision_sequence(parsed_sentences[i])[0]) )] \
-	# 					  for j in xrange(0, len(get_decision_sequence(parsed_sentences[i])[1]) )] \
-	# 					  for i in xrange(0, len(parsed_sentences))]
-
-	# calculating feature_cache with 3 dimentions
-	feature_cache = [[[[] for k in xrange(0, len(label_indexer))] \
-						  for j in xrange(0, len(get_decision_sequence(parsed_sentences[i])[1]) )] \
-						  for i in xrange(0, len(parsed_sentences))]
-	for sentence_idx, sentence in enumerate(parsed_sentences):
-		if sentence_idx % 100 == 0:
-			print "Ex " + repr(sentence_idx) + "/" + repr(nb_sentences)
-		decisions, states = get_decision_sequence(sentence)
-		for state_idx, state in enumerate(states):
-			for decision_idx in range(len(label_indexer)):
-				decision = label_indexer.get_object(decision_idx)
-				feature_cache[sentence_idx][state_idx][decision_idx] = extract_features(feature_indexer, \
-							sentence, state, decision, add_to_indexer=True)
-
-
-	# creating a sparce matrix based on the gold decisions
-	# data = []
-	# row  = []
-	# col  = []
-	# row_counter = 0
-	# true_labels = []
-	# for sentence_idx, state_action in enumerate(feature_cache):
-	# 	sentence = parsed_sentences[sentence_idx]
-	# 	decisions, states = get_decision_sequence(sentence)
-	# 	for state_idx, state in enumerate(state_action):
-	# 		decision = decisions[state_idx]
-	# 		true_labels.append(decision)
-	# 		col.extend(feature_cache[sentence_idx][state_idx])
-	# 		for feat_idx in feature_cache[sentence_idx][state_idx]:
-	# 			row.append(row_counter)
-	# 			data.append(1)
-	# 		row_counter += 1
-	# number_train_examples = row_counter
-	# feature_mat = sparse.coo_matrix((data,(row,col)),shape=(number_train_examples, \
-	# 	len(feature_indexer))).tocsr()
-
-
-	# logistic = LogisticRegression(penalty='l2', dual=False, tol=0.0001, C=1.0, fit_intercept=True, \
-	# 	intercept_scaling=1, class_weight=None, random_state=None, solver='liblinear', \
-	# 	max_iter=100, multi_class='ovr', verbose=0, warm_start=False, n_jobs=1)
-	# logistic.fit(feature_mat, true_labels)
-	# score = logistic.score(feature_mat, true_labels)
-	# print ("score of logistic regression:")
-	# print (score)
-
-
-	print "start training...."
-	# SGD
-	epochs = 1
-	lamb=1e-5 
-	eta=1.0
-	# feature_weights = np.random.rand(len(feature_indexer))
-	feature_weights = AdagradTrainer(np.zeros(len(feature_indexer)), lamb, eta)
-	for epoch in range(epochs):
-		print "running epoch: ", epoch
-		for sentence_idx, sentence in enumerate(parsed_sentences):
-			decisions, states = get_decision_sequence(sentence)
-			for state_idx, state in enumerate(states):
-				if state_idx < len(states) - 1:
-					delta_f = Counter()
-					gold_dec_idx = label_indexer.get_index(decisions[state_idx])
-					delta_f.increment_all(feature_cache[sentence_idx][state_idx][gold_dec_idx],1)
-					for decision_idx in range(len(label_indexer)): 
-						posterior_num = feature_weights.score(feature_cache[sentence_idx][state_idx][decision_idx])
-						posterior_denum = logsumexp([feature_weights.score(feature_cache[sentence_idx][state_idx][decision_idx2])\
-						                                for decision_idx2 in range(len(label_indexer))])
-						posterior = posterior_num - posterior_denum
-						delta_f.increment_all(feature_cache[sentence_idx][state_idx][decision_idx], -np.exp(posterior))
-					feature_weights.apply_gradient_update(delta_f, batch_size=1)
-	print "end training "
-	np.savetxt('feature_weights', feature_weights.get_final_weights())
-	# return GreedyModel(feature_indexer, feature_weights)#  .get_final_weights())
-	return BeamedModel(feature_indexer, feature_weights, 4)#  .get_final_weights())
 
 
 
@@ -399,40 +478,6 @@ def my_standard_arc(sentence):
 		elif parser_state.stack_len() == 1 and parser_state.buffer_len() == 0:
 			break
 
-
-
-
-def myLogisticRegression(parser_sentences, feature_cache):
-	pass
-
-
-# Returns a BeamedModel trained over the given treebank.
-def train_beamed_model(parsed_sentences):
-
-	epochs = 3
-	for epoch in range(epochs):
-		print "running epoch: ", epoch
-		for sentence_idx, sentence in enumerate(parsed_sentences):
-			decisions, states = get_decision_sequence(sentence)
-			for state_idx, state in enumerate(states):
-				if state_idx < len(states) - 1:
-					delta_f = Counter()
-					gold_dec_idx = label_indexer.get_index(decisions[state_idx])
-					delta_f.increment_all(feature_cache[sentence_idx][state_idx][gold_dec_idx],1)
-					for decision_idx in range(len(label_indexer)): 
-						posterior_num = feature_weights.score(feature_cache[sentence_idx][state_idx][decision_idx])
-						posterior_denum = logsumexp([feature_weights.score(feature_cache[sentence_idx][state_idx][decision_idx2])\
-						                                for decision_idx2 in range(len(label_indexer))])
-						posterior = posterior_num - posterior_denum
-						delta_f.increment_all(feature_cache[sentence_idx][state_idx][decision_idx], -np.exp(posterior))
-					feature_weights.apply_gradient_update(delta_f, batch_size=1)
-
-
-
-	add(self, elt, score)
-	set_trace()
-	pass
-	# raise Exception("IMPLEMENT ME")
 
 
 # Extract features for the given decision in the given parser state. Features look at the top of the
