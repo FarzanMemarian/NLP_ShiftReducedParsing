@@ -15,12 +15,13 @@ if __name__ == '__main__':
     print "Kept " + repr(len(train)) + " exs"
     print "Reading dev data..."
     dev_whole = read_data("data/dev.conllx")
-    dev = dev_whole[:nb_exm]
+    dev = dev_whole[:]
+    # dev = train
     # Here's a few sentences...
     print "Examples of sentences:"
-    print str(dev[1])
-    print str(dev[3])
-    print str(dev[5])
+    # print str(dev[1])
+    # print str(dev[3])
+    # print str(dev[5])
     
     # Set to true to produce final output
     run_on_test = False
@@ -38,7 +39,6 @@ if __name__ == '__main__':
     elif system_to_run == "GREEDY":
         trained_model = train_greedy_model(train)
         print "Parsing dev"
-        # set_trace()
         parsed_dev = [trained_model.parse(sent) for sent in dev]
         if run_on_test:
             print "Parsing test"
