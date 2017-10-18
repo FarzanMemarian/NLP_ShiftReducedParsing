@@ -23,36 +23,24 @@ class GreedyModel(object):
 	# the predicted parse.
 	def parse(self, sentence):
 
-		label_indexer = get_label_indexer()
+		# label_indexer = get_label_indexer()
 		parser_state = initial_parser_state(len(sentence))
-		probability_array = np.zeros(len(label_indexer))
-		while not parser_state.is_finished():		
-			if parser_state.stack_len() == 1 and parser_state.buffer_len() > 0:
-				parser_state = parser_state.take_action("S")
-
-			elif parser_state.stack_len() == 2 and parser_state.buffer_len() == 0:
-				parser_state = parser_state.take_action("R")
-
-			else:
-				for decision_idx in range(len(label_indexer)):
-					# decision = label_indexer.get_object(decision_idx)
-					decision = label_indexer.get_object(decision_idx)
-					posterior_num = self.feature_weights.score(extract_features(\
-						self.feature_indexer, sentence, parser_state, decision, add_to_indexer=False))
-					# posterior_denum = logsumexp([self.feature_weights.score(extract_features(\
-					# 	self.feature_indexer, sentence, parser_state, decision, add_to_indexer=False))\
-					# 	                 for decision_idx in range(len(label_indexer))])
-					posterior = posterior_num #- posterior_denum
-					probability_array[decision_idx] = posterior
-
-				if parser_state.stack_len() == 2 and parser_state.buffer_len() > 0:
-					probability_array[label_indexer.index_of("L")] = -math.exp(30)
-
-				if parser_state.buffer_len() == 0:
-					probability_array[label_indexer.index_of("S")] = -math.exp(30)
-				# set_trace()
-				final_decision = label_indexer.get_object(np.argmax(probability_array))
-				parser_state = parser_state.take_action(final_decision)
+		
+		while not parser_state.is_finished():
+			probability_array = np.zeros(len(parser_state.legal_actions()))
+			for decision_idx, decision in enumerate(parser_state.legal_actions()):
+				
+				# decision = label_indexer.get_object(decision_idx)
+				
+				posterior_num = self.feature_weights.score(extract_features(\
+					self.feature_indexer, sentence, parser_state, decision, add_to_indexer=False))
+				# posterior_denum = logsumexp([self.feature_weights.score(extract_features(\
+				# 	self.feature_indexer, sentence, parser_state, decision, add_to_indexer=False))\
+				# 	                 for decision_idx in range(len(label_indexer))])
+				posterior = posterior_num #- posterior_denum
+				probability_array[decision_idx] = posterior
+			final_decision = parser_state.legal_actions()[np.argmax(probability_array)]
+			parser_state = parser_state.take_action(final_decision)
 
 		return ParsedSentence(sentence.tokens, parser_state.get_dep_objs(len(sentence)) )
 
@@ -139,11 +127,8 @@ def train_greedy_model(parsed_sentences):
 					feature_weights.apply_gradient_update(delta_f, batch_size=1)
 	print "end training "
 	np.savetxt('feature_weights', feature_weights.get_final_weights())
-	# return GreedyModel(feature_indexer, feature_weights)#  .get_final_weights())
-	return BeamedModel(feature_indexer, feature_weights, 4)#  .get_final_weights())
-
-		
-
+	return GreedyModel(feature_indexer, feature_weights)#  .get_final_weights())
+	# return BeamedModel(feature_indexer, feature_weights, 1)#  .get_final_weights())
 
 # Beam-search-based global parsing model. Shift/reduce decisions are still modeled with local features, but scores are
 # accumulated over the whole sequence of decisions to give a "global" decision.
@@ -163,61 +148,25 @@ class BeamedModel(object):
 		beam_arr = []
 		
 		beam = Beam(self.beam_size)
-		beam.add(parser_state,0)
+		beam.add([parser_state ,"0"], 0)
 		beam_arr.append(beam)
-
 
 		for beam_counter in range(2*len(sentence)):
 			beam = Beam(self.beam_size)
 			old_beam = beam_arr[beam_counter]
-			for parser_state in old_beam.get_elts():
-
-				if parser_state.stack_len() == 1 and parser_state.buffer_len() > 0:
-					decision = "S"
-					candidate_state = parser_state.take_action(decision) 
+			for parser_state, decision_old in old_beam.get_elts():
+				for decision in parser_state.legal_actions():
+					candidate_state = parser_state.take_action(decision)  
 					score = self.feature_weights.score(extract_features(\
-									self.feature_indexer, sentence, parser_state, decision, add_to_indexer=False))
-					beam.add(candidate_state, score)
-
-				elif parser_state.stack_len() == 2 and parser_state.buffer_len() == 0:
-					decision = "R"
-					candidate_state = parser_state.take_action(decision) 
-					score = self.feature_weights.score(extract_features(\
-									self.feature_indexer, sentence, parser_state, decision, add_to_indexer=False))
-					beam.add(candidate_state, score)
-
-
-				elif parser_state.stack_len() == 2 and parser_state.buffer_len() > 0:
-					for decision_idx in range(len(label_indexer)):
-						decision = label_indexer.get_object(decision_idx)
-						if decision != "L":
-							candidate_state = parser_state.take_action(decision)  
-							score = self.feature_weights.score(extract_features(\
-									self.feature_indexer, sentence, parser_state, decision, add_to_indexer=False))
-							beam.add(candidate_state, score)
-
-				elif parser_state.buffer_len() == 0:
-					for decision_idx in range(len(label_indexer)):
-						decision = label_indexer.get_object(decision_idx)
-						if decision != "S":
-							candidate_state = parser_state.take_action(decision) 
-							score = self.feature_weights.score(extract_features(\
-									self.feature_indexer, sentence, parser_state, decision, add_to_indexer=False))
-							beam.add(candidate_state, score)
-
-				else: 
-					for decision_idx in range(len(label_indexer)):
-						decision = label_indexer.get_object(decision_idx)
-						candidate_state = parser_state.take_action(decision)  
-						score = self.feature_weights.score(extract_features(\
-								self.feature_indexer, sentence, parser_state, decision, add_to_indexer=False))
-						beam.add(candidate_state, score)
+							self.feature_indexer, sentence, parser_state, decision, add_to_indexer=False))
+					beam.add([candidate_state, decision_old + decision], score)
 			beam_arr.append(beam)
-		parser_state = beam_arr[-1].head()
+		parser_state = beam_arr[-1].head()[0]
+		action_sequence = beam_arr[-1].head()[1]
 		
 
 
-		return ParsedSentence(sentence.tokens, parser_state.get_dep_objs(len(sentence)) ), beam_arr
+		return ParsedSentence(sentence.tokens, parser_state.get_dep_objs(len(sentence))), action_sequence
 		
 		# raise Exception("IMPLEMENT ME")
 
@@ -249,54 +198,37 @@ def train_beamed_model(parsed_sentences):
 							sentence, state, decision, add_to_indexer=True)
 
 	print "start training...."
-
-
-
 	epochs = 5
 	lamb=1e-5 
 	eta=1.0
 	feature_weights = AdagradTrainer(np.zeros(len(feature_indexer)), lamb, eta)
-	beam_size = 4
-	epochs = 3
-	beamModel = BeamedModel(feature_indexer, feature_weights, beam_size)
+	beam_size = 5
+	
 	for epoch in range(epochs):
 		print "running epoch: ", epoch
 		for sentence_idx, sentence in enumerate(parsed_sentences):
-			parsed_beam_sen, beam_arr = beamModel.parse(sentence)
+			gradient = Counter()
+
+			gold_decisions, gold_states = get_decision_sequence(sentence)
+			for seq_dec_idx, decision in enumerate(gold_decisions):
+				state_idx = seq_dec_idx
+				gold_dec_idx = label_indexer.get_index(gold_decisions[state_idx])
+				gradient.increment_all(feature_cache[sentence_idx][state_idx][gold_dec_idx],1)
+
+			beamModel = BeamedModel(feature_indexer, feature_weights, beam_size)
+			parsed_beam_sen, action_sequence = beamModel.parse(sentence)
+			parser_state = initial_parser_state(len(sentence))
+			for seq_dec_idx, decision in enumerate(action_sequence[1:]):
+				
+				parser_state = parser_state.take_action(decision)
+				feat = extract_features(feature_indexer, sentence, parser_state, decision, add_to_indexer=False)
+				gradient.increment_all(feat,-1)
 			
-						
 
+			feature_weights.apply_gradient_update(gradient, batch_size=1)
 
-
-
-
-
-
-
-			# decisions, states = get_decision_sequence(sentence)
-			# for state_idx, state in enumerate(states):
-			# 	if state_idx < len(states) - 1:
-			# 		delta_f = Counter()
-			# 		gold_dec_idx = label_indexer.get_index(decisions[state_idx])
-			# 		delta_f.increment_all(feature_cache[sentence_idx][state_idx][gold_dec_idx],1)
-			# 		for decision_idx in range(len(label_indexer)): 
-			# 			posterior_num = feature_weights.score(feature_cache[sentence_idx][state_idx][decision_idx])
-			# 			posterior_denum = logsumexp([feature_weights.score(feature_cache[sentence_idx][state_idx][decision_idx2])\
-			# 			                                for decision_idx2 in range(len(label_indexer))])
-			# 			posterior = posterior_num - posterior_denum
-			# 			delta_f.increment_all(feature_cache[sentence_idx][state_idx][decision_idx], -np.exp(posterior))
-			# 		feature_weights.apply_gradient_update(delta_f, batch_size=1)
-
-
-
-	set_trace()
-	pass
+	return BeamedModel(feature_indexer, feature_weights, beam_size)#  .get_final_weights())
 	# raise Exception("IMPLEMENT ME")
-
-
-
-
-
 
 
 # Stores state of a shift-reduce parser, namely the stack, buffer, and the set of dependencies that have
@@ -334,6 +266,31 @@ class ParserState(object):
 
 	def is_legal(self):
 		return self.stack[0] == -1
+
+	def legal_actions(self):
+
+# def get_label_indexer():
+# 	label_indexer = Indexer()
+# 	label_indexer.get_index("L")
+# 	label_indexer.get_index("R")
+# 	label_indexer.get_index("S")
+# 	return label_indexer
+
+		if self.stack_len() == 1 and self.buffer_len() > 0:
+			decisions = ["S"]
+
+		elif self.stack_len() == 2 and self.buffer_len() == 0:
+			decisions = ["R"]
+
+		elif self.stack_len() == 2 and self.buffer_len() > 0:
+			decisions = ["R","S"]
+
+		elif self.buffer_len() == 0:
+			decisions = ["L","R"]
+
+		else:
+			decisions = ["L","R","S"]
+		return decisions			
 
 	def is_finished(self):
 		return len(self.buffer) == 0 and len(self.stack) == 1
@@ -419,17 +376,10 @@ def initial_parser_state(sent_len):
 # Returns an indexer for the three actions so you can iterate over them easily.
 def get_label_indexer():
 	label_indexer = Indexer()
+	label_indexer.get_index("L")
 	label_indexer.get_index("R")
 	label_indexer.get_index("S")
-	label_indexer.get_index("L")
 	return label_indexer
-
-
-
-
-
-
-
 
 
 def my_standard_arc(sentence):

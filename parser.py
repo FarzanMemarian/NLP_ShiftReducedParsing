@@ -9,7 +9,7 @@ if __name__ == '__main__':
     # Load the training and test data
     print "Reading train data..."
     train_whole = read_data("data/train.conllx")
-    nb_exm = 100
+    nb_exm = 1000
     train = train_whole[:nb_exm]
     # shuffle(train)
     print "Kept " + repr(len(train)) + " exs"
@@ -48,7 +48,7 @@ if __name__ == '__main__':
     elif system_to_run == "BEAM":
         trained_model = train_beamed_model(train)
         print "Parsing dev"
-        parsed_dev = [trained_model.parse(sent) for sent in dev]
+        parsed_dev = [trained_model.parse(sent)[0] for sent in dev]
         if run_on_test:
             print "Parsing test"
             test = read_data("data/test.conllx.blind")
