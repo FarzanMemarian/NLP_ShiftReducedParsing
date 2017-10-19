@@ -1,0 +1,24 @@
+Reading train data...
+Kept 1000 exs
+Reading dev data...
+Examples of sentences:
+Extracting features
+Ex 0/1000
+Ex 100/1000
+Ex 200/1000
+Ex 300/1000
+Ex 400/1000
+Ex 500/1000
+Ex 600/1000
+Ex 700/1000
+Ex 800/1000
+Ex 900/1000
+start training....
+beam size:  2
+running epoch:  0
+running epoch:  1
+running epoch:  2
+running epoch:  3
+running epoch:  4
+Parsing dev
+UAS: 16311/40117 = 40.66; LAS: 0/40117 = 0.00

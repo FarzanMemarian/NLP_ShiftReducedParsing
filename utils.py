@@ -1,5 +1,5 @@
 # utils.py
-
+from pdb import set_trace
 
 # Bijection between objects and integers starting at 0. Useful for mapping
 # labels, features, etc. into coordinates of a vector space.
@@ -107,13 +107,14 @@ class Beam(object):
     # Adds the element to the beam with the given score if the beam has room or if the score
     # is better than the score of the worst element currently on the beam
     def add(self, elt, score):
+        # if len(self.elts) == self.size and score < self.scores[-1]:
         if len(self.elts) == self.size and score < self.scores[-1]:
             # Do nothing because this element is the worst
             return
         # If the list contains the item with a lower score, remove it
         i = 0
         while i < len(self.elts):
-            if self.elts[i] == elt and score > self.scores[i]:
+            if self.elts[i][0].__eq__(elt[0]) and score > self.scores[i]:
                 del self.elts[i]
                 del self.scores[i]
             i += 1
@@ -150,6 +151,8 @@ class Beam(object):
 
     def get_elts(self):
         return self.elts
+
+        
 
     def get_elts_and_scores(self):
         return zip(self.elts, self.scores)

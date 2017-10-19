@@ -1,0 +1,57 @@
+Reading train data...
+Kept 39832 exs
+Reading dev data...
+Examples of sentences:
+Extracting features
+Ex 0/39832
+Ex 1000/39832
+Ex 2000/39832
+Ex 3000/39832
+Ex 4000/39832
+Ex 5000/39832
+Ex 6000/39832
+Ex 7000/39832
+Ex 8000/39832
+Ex 9000/39832
+Ex 10000/39832
+Ex 11000/39832
+Ex 12000/39832
+Ex 13000/39832
+Ex 14000/39832
+Ex 15000/39832
+Ex 16000/39832
+Ex 17000/39832
+Ex 18000/39832
+Ex 19000/39832
+Ex 20000/39832
+Ex 21000/39832
+Ex 22000/39832
+Ex 23000/39832
+Ex 24000/39832
+Ex 25000/39832
+Ex 26000/39832
+Ex 27000/39832
+Ex 28000/39832
+Ex 29000/39832
+Ex 30000/39832
+Ex 31000/39832
+Ex 32000/39832
+Ex 33000/39832
+Ex 34000/39832
+Ex 35000/39832
+Ex 36000/39832
+Ex 37000/39832
+Ex 38000/39832
+Ex 39000/39832
+start training beam....
+number of epochs: 2
+beam size:  3
+running epoch:  0
+Traceback (most recent call last):
+  File "parser.py", line 49, in <module>
+    print "Parsing dev"
+  File "/home/frank/1CSEM/1UTCoursesTaken/nlpGreg/project2/hw2-release/models.py", line 353, in train_beamed_model
+    feature_weights.apply_gradient_update(gradient, batch_size=1)
+  File "/home/frank/1CSEM/1UTCoursesTaken/nlpGreg/project2/hw2-release/adagrad_trainer.py", line 44, in apply_gradient_update
+    old_eta_over_Htii = self.eta / (1 + np.sqrt(self.diag_Gt[i]))
+KeyboardInterrupt

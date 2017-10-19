@@ -1,0 +1,21 @@
+python2 parser.py --system_to_run="GREEDY" --beam_size=5 --nb_exm=39832 --early_stopping="True" --extra_features="TRUE" --run_on_test="True" --epochs=1 &>                  system_to_run="GREEDY"--beam_size=5--nb_exm=39832--early_stopping="True"--extra_features="True"--run_on_test="True"--epochs=1.txt & 
+
+python2 parser.py --system_to_run="GREEDY" --beam_size=5 --nb_exm=39832 --early_stopping="True" --extra_features="False" --run_on_test="True" --epochs=1 &>                  system_to_run="GREEDY"--beam_size=5--nb_exm=39832--early_stopping="True"--extra_features="False"--run_on_test="True"--epochs=1.txt &
+
+
+# TO COMPARE THE EFFECT OF BEAM SIZE
+python2 parser.py --system_to_run="BEAM" --beam_size=1 --nb_exm=5000 --early_stopping="True" --extra_features="False" --run_on_test="True" --epochs=1 &>                  system_to_run="BEAM"--beam_size=1--nb_exm=5000--early_stopping="True"--extra_features="False"--run_on_test="True"--epochs=1.txt &
+
+python2 parser.py --system_to_run="BEAM" --beam_size=3 --nb_exm=5000 --early_stopping="True" --extra_features="False" --run_on_test="True" --epochs=1 &>                  system_to_run="BEAM"--beam_size=3--nb_exm=5000--early_stopping="True"--extra_features="False"--run_on_test="True"--epochs=1.txt &
+
+python2 parser.py --system_to_run="BEAM" --beam_size=5 --nb_exm=5000 --early_stopping="True" --extra_features="False" --run_on_test="True" --epochs=1 &>                  system_to_run="BEAM"--beam_size=5--nb_exm=5000--early_stopping="True"--extra_features="False"--run_on_test="True"--epochs=1.txt &
+
+# TO COMPARE THE EFFECT OF NOT HAVING EARLY STOPPING
+python2 parser.py --system_to_run="BEAM" --beam_size=3 --nb_exm=5000 --early_stopping="FALSE" --extra_features="False" --run_on_test="True" --epochs=1 &>                  system_to_run="BEAM"--beam_size=3--nb_exm=5000--early_stopping="FALSE"--extra_features="False"--run_on_test="True"--epochs=1.txt &
+
+# TO COMPARE THE EFFECT OF ADDING FEATURES
+python2 parser.py --system_to_run="BEAM" --beam_size=3 --nb_exm=5000 --early_stopping="True" --extra_features="TRUE" --run_on_test="True" --epochs=1 &>                  system_to_run="BEAM"--beam_size=3--nb_exm=5000--early_stopping="True"--extra_features="TRUE"--run_on_test="True"--epochs=1.txt &
+
+
+# TO COMPARE THE EFFECT OF MORE TRAINING
+python2 parser.py --system_to_run="BEAM" --beam_size=3 --nb_exm=5000 --early_stopping="True" --extra_features="False" --run_on_test="True" --epochs=3 &>                  system_to_run="BEAM"--beam_size=3--nb_exm=5000--early_stopping="True"--extra_features="False"--run_on_test="True"--epochs=3.txt &

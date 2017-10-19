@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "parser.py", line 4, in <module>
+    from models import *
+  File "/home/frank/1CSEM/1UTCoursesTaken/nlpGreg/project2/hw2-release/models.py", line 493
+    add_feat(decision + ":S0wd=" + stack_head_tok.word + "&" + )
+                                                               ^
+SyntaxError: invalid syntax

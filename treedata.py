@@ -43,6 +43,9 @@ class ParsedSentence:
     def get_deps(self):
         return self.deps
 
+    
+
+
     # Returns the parent index of the word at position idx
     def get_parent_idx(self, idx):
         if idx < 0:
